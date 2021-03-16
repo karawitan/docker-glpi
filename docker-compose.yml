@@ -1,28 +1,45 @@
 version: "3.2"
 
-services:
-#Mysql Container
-  mysql:
-    image: mysql:5.7.23
-    container_name: mysql
-    hostname: mysql
-    volumes:
-      - /var/lib/mysql:/var/lib/mysql
-    env_file:
-      - ./mysql.env
-    restart: always
+volumes:
+  glpi-data:
+    driver: local
+  db-data:
+    driver: local
 
-#GLPI Container
-  glpi:
-    image: diouxx/glpi
-    container_name : glpi
-    hostname: glpi
-    ports:
-      - "80:80"
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-      - /var/www/html/glpi/:/var/www/html/glpi
-    environment:
-      - TIMEZONE=Europe/Brussels
+services:
+  db:
+    image: hypriot/rpi-mysql
     restart: always
+    volumes:
+      - db-data:/var/lib/mysql
+    hostname: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password_mysql
+      - MYSQL_DATABASE=glpi
+      - MYSQL_USER=glpi
+      - MYSQL_PASSWORD=glpi_password_mysql
+
+  glpi:
+    image: glpi:arm32v7
+    restart: always
+    depends_on:
+      - db
+    volumes:
+      - glpi-data:/var/www/html
+    hostname: glpi
+    environment:
+      - TIMEZONE=Europe/Paris
+    ports:
+      - "8003:80"
+    labels:
+      - UFW_MANAGED=TRUE
+
+  pma:
+    depends_on:
+      - db
+    image: ebspace/armhf-phpmyadmin
+    restart: always
+    environment:
+      - PMA_HOST=db
+    ports:
+      - "8083:80"
